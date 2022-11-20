@@ -121,6 +121,77 @@ public class ImageInfo implements PlugIn {
 		else
 			return null;
 	}
+    private void calScaled(Calibration cal, boolean nonUniformUnits, String xunit, String yunit, String zunit, String s, ImagePlus imp, int slices) {
+		String xunits = cal.getUnits();
+		String yunits = xunits;
+		String zunits = xunits;
+		if (nonUniformUnits) {
+			xunits = xunit;
+			yunits = yunit;
+			zunits = zunit;
+		}
+		double pw = imp.getWidth()*cal.pixelWidth;
+		double ph = imp.getHeight()*cal.pixelHeight;
+		s += "Width:  "+d2s(pw)+" " + xunits+" ("+imp.getWidth()+")\n";
+		s += "Height:  "+d2s(ph)+" " + yunits+" ("+imp.getHeight()+")\n";
+		if (slices>1) {
+			double pd = slices*cal.pixelDepth;
+			s += "Depth:  "+d2s(pd)+" " + zunits+" ("+slices+")\n";
+		}
+		s += "Size:  "+ImageWindow.getImageSize(imp)+"\n";
+		double xResolution = 1.0/cal.pixelWidth;
+		double yResolution = 1.0/cal.pixelHeight;
+		if (xResolution==yResolution)
+			s += "Resolution:  "+d2s(xResolution) + " pixels per "+xunit+"\n";
+		else {
+			s += "X Resolution:  "+d2s(xResolution) + " pixels per "+xunit+"\n";
+			s += "Y Resolution:  "+d2s(yResolution) + " pixels per "+yunit+"\n";
+		}
+	}
+
+	private void caseGray8(ImagePlus imp, String s,ImageProcessor ip, int type) {
+		switch (type) {
+			case ImagePlus.GRAY8:
+				s += "Bits per pixel: 8 ";
+				String lut = "LUT";
+				if (imp.getProcessor().isColorLut())
+					lut = "color " + lut;
+				else
+					lut = "grayscale " + lut;
+				if (imp.isInvertedLut())
+					lut = "inverting " + lut;
+				s += "(" + lut + ")\n";
+				if (imp.getNChannels() > 1)
+					s += displayRanges(imp);
+				else
+					s += "Display range: " + (int) ip.getMin() + "-" + (int) ip.getMax() + "\n";
+				break;
+		}
+	}
+
+	private void calCalibrated(String s, Calibration cal, String valueUnit) {
+		s += " \n";
+		int curveFit = cal.getFunction();
+		s += "Calibration function: ";
+		if (curveFit==Calibration.UNCALIBRATED_OD)
+			s += "Uncalibrated OD\n";
+		else if (curveFit==Calibration.CUSTOM)
+			s += "Custom lookup table\n";
+		else
+			s += CurveFitter.fList[curveFit]+"\n";
+		double[] c = cal.getCoefficients();
+		if (c!=null) {
+			s += "  a: "+IJ.d2s(c[0],6)+"\n";
+			s += "  b: "+IJ.d2s(c[1],6)+"\n";
+			if (c.length>=3)
+				s += "  c: "+IJ.d2s(c[2],6)+"\n";
+			if (c.length>=4)
+				s += "  c: "+IJ.d2s(c[3],6)+"\n";
+			if (c.length>=5)
+				s += "  c: "+IJ.d2s(c[4],6)+"\n";
+		}
+		s += "  Unit: \""+valueUnit+"\"\n";
+	}
 
 	private String getInfo(ImagePlus imp, ImageProcessor ip) {
 		String s = new String("");
@@ -128,42 +199,20 @@ public class ImageInfo implements PlugIn {
 			s += IJ.getInstance().getInfo()+"\n \n";
 		s += "Title: " + imp.getTitle() + "\n";
 		Calibration cal = imp.getCalibration();
-    	int stackSize = imp.getStackSize();
-    	int channels = imp.getNChannels();
-    	int slices = imp.getNSlices();
-    	int frames = imp.getNFrames();
+		int stackSize = imp.getStackSize();
+		int channels = imp.getNChannels();
+		int slices = imp.getNSlices();
+		int frames = imp.getNFrames();
 		int digits = imp.getBitDepth()==32?4:0;
 		int dp, dp2;
 		boolean nonUniformUnits = !cal.getXUnit().equals(cal.getYUnit());
 		String xunit = cal.getXUnit();
 		String yunit = cal.getYUnit();
 		String zunit = cal.getZUnit();
+
+
 		if (cal.scaled()) {
-			String xunits = cal.getUnits();
-			String yunits = xunits;
-			String zunits = xunits;
-			if (nonUniformUnits) {
-				xunits = xunit;
-				yunits = yunit;
-				zunits = zunit;
-			}
-			double pw = imp.getWidth()*cal.pixelWidth;
-			double ph = imp.getHeight()*cal.pixelHeight;
-	    	s += "Width:  "+d2s(pw)+" " + xunits+" ("+imp.getWidth()+")\n";
-	    	s += "Height:  "+d2s(ph)+" " + yunits+" ("+imp.getHeight()+")\n";
-	    	if (slices>1) {
-				double pd = slices*cal.pixelDepth;
-	    		s += "Depth:  "+d2s(pd)+" " + zunits+" ("+slices+")\n";
-	    	}
-			s += "Size:  "+ImageWindow.getImageSize(imp)+"\n";
-	    	double xResolution = 1.0/cal.pixelWidth;
-	    	double yResolution = 1.0/cal.pixelHeight;
-	    	if (xResolution==yResolution)
-	    		s += "Resolution:  "+d2s(xResolution) + " pixels per "+xunit+"\n";
-	    	else {
-	    		s += "X Resolution:  "+d2s(xResolution) + " pixels per "+xunit+"\n";
-	    		s += "Y Resolution:  "+d2s(yResolution) + " pixels per "+yunit+"\n";
-	    	}
+			calScaled(cal,nonUniformUnits, xunit, yunit, zunit,s, imp, slices);
 	    } else {
 	    	s += "Width:  " + imp.getWidth() + " pixels\n";
 	    	s += "Height:  " + imp.getHeight() + " pixels\n";
@@ -186,22 +235,8 @@ public class ImageInfo implements PlugIn {
 
 	    s += "ID: "+imp.getID()+"\n";
 	    int type = imp.getType();
-    	switch (type) {
-	    	case ImagePlus.GRAY8:
-	    		s += "Bits per pixel: 8 ";
-	    		String lut = "LUT";
-	    		if (imp.getProcessor().isColorLut())
-	    			lut = "color " + lut;
-	    		else
-	    			lut = "grayscale " + lut;
-	    		if (imp.isInvertedLut())
-	    			lut = "inverting " + lut;
-				s += "(" + lut + ")\n";
-				if (imp.getNChannels()>1)
-					s += displayRanges(imp);
-				else
-					s += "Display range: "+(int)ip.getMin()+"-"+(int)ip.getMax()+"\n";
-				break;
+		caseGray8(imp, s, ip, type);
+		switch (type) {
 	    	case ImagePlus.GRAY16: case ImagePlus.GRAY32:
 	    		if (type==ImagePlus.GRAY16) {
 	    			String sign = cal.isSigned16Bit()?"signed":"unsigned";
@@ -315,27 +350,7 @@ public class ImageInfo implements PlugIn {
 
 	    String valueUnit = cal.getValueUnit();
 	    if (cal.calibrated()) {
-	    	s += " \n";
-	    	int curveFit = cal.getFunction();
-			s += "Calibration function: ";
-			if (curveFit==Calibration.UNCALIBRATED_OD)
-				s += "Uncalibrated OD\n";
-			else if (curveFit==Calibration.CUSTOM)
-				s += "Custom lookup table\n";
-			else
-				s += CurveFitter.fList[curveFit]+"\n";
-			double[] c = cal.getCoefficients();
-			if (c!=null) {
-				s += "  a: "+IJ.d2s(c[0],6)+"\n";
-				s += "  b: "+IJ.d2s(c[1],6)+"\n";
-				if (c.length>=3)
-					s += "  c: "+IJ.d2s(c[2],6)+"\n";
-				if (c.length>=4)
-					s += "  c: "+IJ.d2s(c[3],6)+"\n";
-				if (c.length>=5)
-					s += "  c: "+IJ.d2s(c[4],6)+"\n";
-			}
-			s += "  Unit: \""+valueUnit+"\"\n";
+			calCalibrated(s, cal, valueUnit);
 	    } else if (valueUnit!=null && !valueUnit.equals("Gray Value")) {
 			s += "Calibration function: None\n";
 			s += "  Unit: \""+valueUnit+"\"\n";
