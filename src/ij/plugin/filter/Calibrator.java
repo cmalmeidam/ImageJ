@@ -1,6 +1,7 @@
 package ij.plugin.filter;
 import ij.*;
 import ij.gui.*;
+import ij.plugin.SuperTextReader;
 import ij.process.*;
 import ij.measure.*;
 import ij.util.*;
@@ -438,7 +439,7 @@ public class Calibrator implements PlugInFilter, Measurements, ActionListener {
 		if (name==null)
 			return;
 		String path = directory + name;
-		TextReader tr = new TextReader();
+		SuperTextReader tr = new TextReader();
 		ImageProcessor ip = tr.open(path);
 		if (ip==null)
 			return;

@@ -1,5 +1,6 @@
 package ij.plugin.filter;
 import ij.*;
+import ij.plugin.SuperTextReader;
 import ij.process.*;
 import ij.gui.*;
 import ij.io.*;
@@ -7,7 +8,6 @@ import ij.plugin.TextReader;
 import ij.plugin.frame.Recorder;
 import ij.util.Tools;
 import java.awt.*;
-import java.util.*;
 import java.awt.event.*;
 import java.io.*;
 
@@ -402,7 +402,7 @@ public class Convolver implements ExtendedPlugInFilter, DialogListener, ActionLi
 		if (name==null)
 			return;
 		String path = directory + name;
-		TextReader tr = new TextReader();
+		SuperTextReader tr = new TextReader();
 		ImageProcessor ip = tr.open(path);
 		if (ip==null)
 			return;

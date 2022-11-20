@@ -2,7 +2,7 @@ package ij.plugin;
 import ij.*;
 import ij.io.*;
 import ij.process.*;
-import ij.gui.ImageWindow;
+
 import java.awt.*;
 import java.io.*;
 import java.awt.image.*;
@@ -380,7 +380,7 @@ public class LutLoader extends ImagePlus implements PlugIn {
 	}
 	
 	int openTextLut(FileInfo fi) throws IOException {
-		TextReader tr = new TextReader();
+		SuperTextReader tr = new TextReader();
 		tr.hideErrorMessages();
 		ImageProcessor ip = tr.open(fi.getFilePath());
 		if (ip==null)
